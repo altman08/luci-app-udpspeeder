@@ -21,6 +21,14 @@ start_instance() {
 	procd_close_instance
 }
 
+start_dns_monitor() {
+	procd_open_instance dns-monitor
+	procd_set_param command /usr/share/udpspeeder-luci/monitor.sh
+	procd_set_param respawn
+	procd_set_param term_timeout 5
+	procd_close_instance
+}
+
 start_service() {
 	local target="$1"
 	umask 077
@@ -33,11 +41,27 @@ start_service() {
 		start_instance "$target"
 	else
 		config_foreach start_instance udpspeeder
-		procd_open_instance dns-monitor
-		procd_set_param command /usr/share/udpspeeder-luci/monitor.sh
-		procd_set_param respawn
-		procd_close_instance
 	fi
+	# Also include the monitor in additive single-rule starts, so enabling the
+	# first domain rule starts it without restarting unrelated rule instances.
+	if dns_monitor_needed; then
+		start_dns_monitor
+	fi
+}
+
+stop_unused_dns_monitor() {
+	local info
+	config_load udpspeeder
+	dns_monitor_needed && return 0
+	# Remove registered monitors even while they are waiting for respawn.
+	info=$(ubus call service list '{"name":"udpspeeder-luci"}') || return 1
+	case "$info" in *\"dns-monitor\"*) stop dns-monitor ;; esac
+}
+
+# Run after rc.common has submitted the service JSON to procd. Stopping an
+# instance inside start_service() would overwrite that pending JSON request.
+service_started() {
+	stop_unused_dns_monitor
 }
 
 service_triggers() {
@@ -61,6 +85,7 @@ rule_stop() {
 	uci set "udpspeeder.$1.enabled=0" && uci commit udpspeeder || return 1
 	stop "$1"
 	rm -f "$STATE_DIR/$1.status" "$STATE_DIR/$1.resolved"
+	stop_unused_dns_monitor
 }
 
 restart_instance() {

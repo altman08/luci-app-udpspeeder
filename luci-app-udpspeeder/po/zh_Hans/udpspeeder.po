@@ -22,6 +22,9 @@ msgstr "支持整数或 min:max；0 表示关闭。"
 msgid "Add rule"
 msgstr "添加规则"
 
+msgid "Actions"
+msgstr "操作"
+
 msgid "Advanced settings"
 msgstr "高级设置"
 
@@ -247,8 +250,8 @@ msgstr "启动"
 msgid "Start failed"
 msgstr "启动失败"
 
-msgid "Status / actions"
-msgstr "状态 / 操作"
+msgid "Status"
+msgstr "状态"
 
 msgid "Status query failed"
 msgstr "状态查询失败"

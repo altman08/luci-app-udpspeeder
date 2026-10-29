@@ -15,7 +15,10 @@ RUNTIME = ROOT / 'luci-app-udpspeeder/root/usr/share/udpspeeder-luci'
 
 def config_adapter(rules):
     cases = []
+    sections = []
     for sid, values in rules.items():
+        section_type = values.get('TYPE', 'global' if sid == 'global' else 'udpspeeder')
+        sections.append('[ "$_cf_type" != ' + shlex.quote(section_type) + ' ] || "$_cf_callback" ' + shlex.quote(sid) + ' "$@"')
         for name, value in values.items():
             cases.append(f'{shlex.quote(sid + ":" + name)}) _cg_value={shlex.quote(str(value))} ;;')
     return '''config_load() { :; }
@@ -27,6 +30,12 @@ config_get() {
     export "$1=$_cg_value"
 }
 config_get_bool() { config_get "$@"; }
+config_foreach() {
+    local _cf_callback="$1" _cf_type="$2"
+    shift 2
+''' + '\n'.join(sections) + '''
+    return 0
+}
 '''
 
 
@@ -158,12 +167,160 @@ if os.environ.get('TEST_WAIT'):
 uci() { case "$*" in '-q get udpspeeder.r1') echo udpspeeder ;; esac; }
 start() { printf 'start:%s\\n' "$1"; }
 stop() { printf 'stop:%s\\n' "$1"; }
+procd_running() { return 1; }
+ubus() { echo '{}'; }
 rule_start r1
 rule_stop r1
 rule_start '../invalid'
 ''')
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(result.stdout.splitlines(), ['start:r1', 'stop:r1'])
+
+    def init_source(self):
+        init = ROOT / 'luci-app-udpspeeder/root/etc/init.d/udpspeeder-luci'
+        return init.read_text().replace('. /usr/share/udpspeeder-luci/common.sh',
+            '. ' + shlex.quote(str(self.common))).replace('/etc/init.d/udpspeeder disable 2>/dev/null', ':')
+
+    def test_dns_monitor_boot_policy_skips_disabled_literal_and_invalid_targets(self):
+        for rules, expected in [
+            ({}, []),
+            ({'r1': {'enabled': '0', 'remote': 'peer.example:9001'}}, []),
+            ({'r1': dict(self.rule)}, ['r1']),
+            ({'r1': dict(self.rule, remote='[2001:db8::1]:9001')}, ['r1']),
+            ({'r1': dict(self.rule, remote='invalid endpoint')}, ['r1']),
+            ({'r1': dict(self.rule, remote='peer.example:9001')}, ['r1', 'dns-monitor'])]:
+            with self.subTest(rules=rules):
+                result = self.shell(self.init_source() + config_adapter(rules) + '''
+stop_if_registered() { return 0; }
+uci() { return 0; }
+procd_open_instance() { echo "$1"; }
+procd_set_param() { :; }
+procd_close_instance() { :; }
+start_service
+''')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout.splitlines(), expected)
+
+    def test_dns_monitor_tracks_first_and_last_domain_rules_and_config_reloads(self):
+        rules = {
+            'literal': dict(self.rule),
+            'domain1': dict(self.rule, enabled='0', remote='one.example:9001'),
+            'domain2': dict(self.rule, enabled='0', remote='two.example:9001')}
+        adapter = config_adapter(rules).replace('config_get() {', 'fixture_get() {')
+        result = self.shell(self.init_source() + adapter + '''
+config_get() {
+    fixture_get "$@"
+    if [ -f "$STATE_DIR/$2.$3" ]; then export "$1=$(cat "$STATE_DIR/$2.$3")"; fi
+}
+uci() {
+    local key value sid
+    case "$1" in
+        -q) [ "$2" != get ] || printf 'udpspeeder\\n' ;;
+        set)
+            key=${2#udpspeeder.}; value=${key#*=}; key=${key%%=*}
+            printf '%s' "$value" > "$STATE_DIR/$key"
+            ;;
+    esac
+    return 0
+}
+stop_if_registered() { return 0; }
+mkdir "$STATE_DIR/instances" "$STATE_DIR/pending"
+request_open=0
+procd_open_instance() { touch "$STATE_DIR/pending/$1"; }
+procd_set_param() { :; }
+procd_close_instance() { :; }
+procd_running() { test -f "$STATE_DIR/instances/$2"; }
+ubus() {
+    # A crashed monitor can remain registered with a pending respawn.
+    if [ -f "$STATE_DIR/instances/dns-monitor" ]; then
+        printf '%s\\n' '{"udpspeeder-luci":{"instances":{"dns-monitor":{"running":false}}}}'
+    else
+        printf '{}\\n'
+    fi
+}
+stop() {
+    # procd_kill resets the service JSON; it must only run after submission.
+    [ "$request_open" = 0 ] || { echo 'Stop clobbered a pending request' >&2; exit 1; }
+    rm -f "$STATE_DIR/instances/$1"
+}
+start() {
+    local path method=set
+    [ -z "$1" ] || method=add
+    rm -f "$STATE_DIR/pending/"*
+    request_open=1
+    start_service "$@"
+    request_open=0
+    printf 'request:%s:' "$method"
+    ls "$STATE_DIR/pending" | sort | tr '\\n' ','
+    printf '\\n'
+    [ "$method" != set ] || rm -f "$STATE_DIR/instances/"*
+    for path in "$STATE_DIR/pending/"*; do
+        [ ! -f "$path" ] || touch "$STATE_DIR/instances/${path##*/}"
+    done
+    service_started
+}
+snapshot() {
+    printf '%s:' "$1"
+    ls "$STATE_DIR/instances" | sort | tr '\\n' ','
+    printf '\\n'
+}
+start
+snapshot boot
+rule_start domain1
+snapshot first
+rule_start domain2
+snapshot second
+rule_stop domain1
+snapshot still_needed
+rule_stop domain2
+snapshot last_stopped
+rule_start domain1
+uci set udpspeeder.domain1.remote='[2001:db8::1]:9001'
+start domain1
+snapshot target_now_ip
+uci set udpspeeder.domain1.remote=one.example:9001
+start
+snapshot reload_domain
+uci set udpspeeder.domain1.enabled=0
+start
+snapshot reload_disabled
+''')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        snapshots = dict(line.split(':', 1) for line in result.stdout.splitlines() if not line.startswith('request:'))
+        self.assertEqual(snapshots, {
+            'boot': 'literal,', 'first': 'dns-monitor,domain1,literal,',
+            'second': 'dns-monitor,domain1,domain2,literal,',
+            'still_needed': 'dns-monitor,domain2,literal,', 'last_stopped': 'literal,',
+            'target_now_ip': 'domain1,literal,', 'reload_domain': 'dns-monitor,domain1,literal,',
+            'reload_disabled': 'literal,'})
+        self.assertIn('request:add:dns-monitor,domain1,', result.stdout.splitlines())
+        self.assertIn('request:add:domain1,', result.stdout.splitlines())
+
+    def test_stopping_dns_monitor_reaps_its_sleep_process(self):
+        adapter = self.work / 'functions.sh'
+        adapter.write_text(config_adapter({'global': {'check_interval': '60'}, 'r1': self.rule}))
+        monitor = self.work / 'monitor.sh'
+        monitor.write_text((RUNTIME / 'monitor.sh').read_text().replace('/lib/functions.sh', str(adapter))
+            .replace('/usr/share/udpspeeder-luci/common.sh', str(self.common))
+            .replace('sleeper=$!', 'sleeper=$!\nprintf "%s" "$sleeper" > "$STATE_DIR/sleep.pid"'))
+        process = subprocess.Popen(['sh', str(monitor)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        child = None
+        try:
+            for _ in range(100):
+                if (self.work / 'sleep.pid').exists(): break
+                time.sleep(0.02)
+            child = int((self.work / 'sleep.pid').read_text())
+            process.terminate()
+            process.wait(timeout=3)
+            self.assertEqual(process.returncode, 0)
+            with self.assertRaises(ProcessLookupError): os.kill(child, 0)
+        finally:
+            if process.poll() is None: process.kill(); process.wait()
+            if child is not None:
+                try: os.kill(child, signal.SIGKILL)
+                except ProcessLookupError: pass
+            process.stdout.close()
+            process.stderr.close()
 
     def test_dns_monitor_restarts_only_changed_enabled_domain_without_preseeding(self):
         source = (RUNTIME / 'monitor.sh').read_text().split('while :; do')[0]

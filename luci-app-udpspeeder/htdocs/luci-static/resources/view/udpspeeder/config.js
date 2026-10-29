@@ -52,6 +52,22 @@ return view.extend({
 		return uci.load('udpspeeder');
 	},
 
+	getRow: function(sid) {
+		if (this.rows[sid]) return this.rows[sid];
+		var self = this;
+		var row = { status: E('span', {}, _("Loading…")), message: E('small', { 'style': 'display:none' }) };
+		row.start = E('button', { 'class': 'cbi-button cbi-button-positive', 'type': 'button', 'disabled': true,
+			'style': 'margin:0 2px', 'click': ui.createHandlerFn(self, function() {
+				return self.control((self.instances[sid] || {}).running ? 'rule_restart' : 'rule_start', sid);
+			}) }, _("Start"));
+		row.stop = E('button', { 'class': 'cbi-button cbi-button-neutral', 'type': 'button', 'disabled': true,
+			'style': 'margin:0 2px', 'click': ui.createHandlerFn(self, 'control', 'rule_stop', sid) }, _("Stop"));
+		row.log = E('a', { 'href': '#', 'style': 'display:none;font-size:12px;color:#337ab7',
+			'click': function(ev) { ev.preventDefault(); return self.showLog(sid); } }, _("Logs"));
+		this.rows[sid] = row;
+		return row;
+	},
+
 	refreshStatus: function() {
 		var self = this;
 		return serviceList('udpspeeder-luci').then(function(result) {
@@ -78,11 +94,16 @@ return view.extend({
 			var busy = self.busy === sid;
 			row.status.textContent = busy ? _("Working…") : self.statusError ? _("Status query failed") :
 				error ? _("Start failed") : running ? (detail.state === 'resolving' ? _("Resolving") : _("Running")) : _("Stopped");
-			row.status.style.color = error ? '#c62828' : running ? '#2e7d32' : '#666';
+			row.status.style.color = busy ? '#ef6c00' : error ? '#c62828' : running ? '#2e7d32' : '#999';
+			row.status.style.fontWeight = running || busy || error ? 'bold' : 'normal';
 			row.message.textContent = error ? detail.message || '' : detail.resolved ? _('Current target: %s').format(detail.resolved) : '';
+			row.message.style.display = row.message.textContent ? '' : 'none';
 			row.start.textContent = running ? _("Restart") : _("Start");
+			row.start.className = 'cbi-button cbi-button-' + (running ? 'action' : 'positive');
+			row.stop.className = 'cbi-button cbi-button-' + (running ? 'negative' : 'neutral');
 			row.start.disabled = !!self.busy || self.map.readonly || self.statusError;
 			row.stop.disabled = !!self.busy || self.map.readonly || self.statusError || !running;
+			row.log.style.display = running || error ? '' : 'none';
 		});
 	},
 
@@ -155,8 +176,10 @@ return view.extend({
 		o.default = '0'; o.rmempty = false; o.editable = true;
 		o = s.taboption('basic', form.Value, 'name', _("Name"));
 		o.placeholder = _("For example: WireGuard");
+		o.textvalue = function(sid) { return E('span', {}, uci.get('udpspeeder', sid, 'name') || sid); };
 		o = s.taboption('basic', form.ListValue, 'server', _("Role"));
 		o.value('0', _("Client")); o.value('1', _("Server")); o.default = '0'; o.rmempty = false;
+		o.textvalue = function(sid) { return uci.get('udpspeeder', sid, 'server') === '1' ? _("Server") : _("Client"); };
 
 		o = s.option(form.DummyValue, '_endpoint', _("Listen → target"));
 		o.modalonly = false;
@@ -168,21 +191,19 @@ return view.extend({
 		o.textvalue = function(sid) {
 			return uci.get('udpspeeder', sid, 'disable_fec') === '1' ? _("Disabled") : uci.get('udpspeeder', sid, 'fec') || '20:10';
 		};
-		o = s.option(form.DummyValue, '_status', _("Status / actions"));
+		o = s.option(form.DummyValue, '_status', _("Status"));
 		o.modalonly = false;
 		o.textvalue = function(sid) {
-			var row = { status: E('strong', {}, _("Loading…")), message: E('small') };
-			row.start = E('button', { 'class': 'cbi-button cbi-button-action', 'type': 'button', 'disabled': true,
-				'click': ui.createHandlerFn(self, function() {
-					return self.control((self.instances[sid] || {}).running ? 'rule_restart' : 'rule_start', sid);
-				}) }, _("Start"));
-			row.stop = E('button', { 'class': 'cbi-button cbi-button-negative', 'type': 'button', 'disabled': true,
-				'click': ui.createHandlerFn(self, 'control', 'rule_stop', sid) }, _("Stop"));
-			self.rows[sid] = row;
-			return E('div', {}, [ E('div', {}, row.status), E('div', {}, row.message),
-				E('div', { 'style': 'display:flex;gap:4px;margin-top:6px;flex-wrap:wrap' }, [ row.start, row.stop,
-					E('button', { 'class': 'cbi-button', 'type': 'button',
-						'click': ui.createHandlerFn(self, 'showLog', sid) }, _("Logs")) ]) ]);
+			var row = self.getRow(sid);
+			return E('div', { 'class': 'udpspeeder-rule-status', 'style': 'display:flex;flex-direction:column;align-items:center;gap:2px' }, [
+				row.status, row.message, row.log ]);
+		};
+		o = s.option(form.DummyValue, '_actions', _("Actions"));
+		o.modalonly = false;
+		o.textvalue = function(sid) {
+			var row = self.getRow(sid);
+			return E('div', { 'class': 'udpspeeder-rule-actions', 'style': 'display:flex;justify-content:center;white-space:nowrap' }, [
+				row.start, row.stop ]);
 		};
 
 		// Virtual fields provide separate address/port inputs while retaining the core schema.

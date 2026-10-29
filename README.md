@@ -7,7 +7,7 @@
 ## 安装 APK
 
 ```sh
-apk add --allow-untrusted ./luci-app-udpspeeder-1.0.0-r6.apk ./luci-i18n-udpspeeder-zh-cn-1.0.0-r6.apk
+apk add --allow-untrusted ./luci-app-udpspeeder-1.0.0-r7.apk ./luci-i18n-udpspeeder-zh-cn-1.0.0-r7.apk
 ```
 
 主包使用英文原文，简体中文由独立的 `luci-i18n-udpspeeder-zh-cn` 提供。安装中文包后，界面跟随 LuCI 的语言设置；未安装中文包时显示英文。中文菜单名称为 **UDP 流量加速**，英文为 **UDP Traffic Acceleration**。
@@ -52,12 +52,13 @@ FEC 编码参数可以两端不同。密钥、禁用随机混淆、禁用校验�
 
 ## 配置与操作
 
+- 列表中的状态和操作分为两列；停止时显示“启动”和置灰的“停止”，运行时显示“重启”和“停止”。运行中或启动失败时可通过状态列的日志链接查看日志；未填写名称时显示规则的 section ID。
 - “角色”对应原 UCI `server`；“FEC 模式”对应原 `mode`，两者独立。
 - 地址和端口分开输入，保存为原有 `local`、`remote` 字段；IPv6 自动添加方括号。
 - 新增规则默认禁用。“保存并应用”应用表单；行内启动、停止同步该规则的启用设置，使用已保存的其他参数。存在尚未应用的 UCI 更改时，先应用更改。
 - 默认 FEC 为 `20:10`，模式 `0`，MTU `1250`，编码超时 `8ms`，队列长度 `200`。
 - 报告间隔 `0` 表示不传 `--report`；核心程序不接受 `--report 0`。
-- DNS 留空使用系统 DNS，也可指定 DNS IP。自动地址族先查 A 再查 AAAA。解析暂时失败时，由 procd 重试；域名 IP 改变后，只更新对应实例。
+- DNS 留空使用系统 DNS，也可指定 DNS IP。自动地址族先查 A 再查 AAAA。解析暂时失败时，由 procd 重试；域名 IP 改变后，只更新对应实例。只有存在已启用且目标为域名的规则时才启动 DNS 监控；纯 IP 目标、全部规则停用时不启动监控，停止最后一条域名规则时会移除监控及其等待进程。
 - “运行中”表示进程存在；隧道是否实际可用，需要通过真实 UDP 应用确认。
 - 日志保存在 `/var/run/udpspeeder-luci/<section>.log`，重启设备后清空，最多保留 1000 行。程序启动时输出的完整参数行和密钥调试行会被过滤。
 - “目标出口设备”对应核心的 `--out-interface`，使用实际设备名，例如 `pppoe-wan`。它不会自动修改系统策略路由。
@@ -117,7 +118,7 @@ make package/feeds/udpspeeder/luci-app-udpspeeder/compile V=s
 ./build-apk.sh
 ```
 
-输出 `dist/luci-app-udpspeeder-1.0.0-r6.apk`、`dist/luci-i18n-udpspeeder-zh-cn-1.0.0-r6.apk` 及各自的 `.sha256`。中文包包含由 PO 编译得到的 LMO 翻译文件。两个包均未签名，安装时使用 `--allow-untrusted`。脚本包含与 OpenWrt 对应的安装、升级、卸载生命周期处理，不会包含测试文件。
+输出 `dist/luci-app-udpspeeder-1.0.0-r7.apk`、`dist/luci-i18n-udpspeeder-zh-cn-1.0.0-r7.apk` 及各自的 `.sha256`。中文包包含由 PO 编译得到的 LMO 翻译文件。两个包均未签名，安装时使用 `--allow-untrusted`。脚本包含与 OpenWrt 对应的安装、升级、卸载生命周期处理，不会包含测试文件。
 
 ## 验证
 

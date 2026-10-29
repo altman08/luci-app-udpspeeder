@@ -48,6 +48,27 @@ ip_literal() {
 	return 1
 }
 
+rule_uses_domain() {
+	local cfg="$1" enabled remote
+	valid_id "$cfg" || return 1
+	config_get_bool enabled "$cfg" enabled 0
+	[ "$enabled" = 1 ] || return 1
+	config_get remote "$cfg" remote
+	split_endpoint "$remote" || return 1
+	! ip_literal "$endpoint_host"
+}
+
+mark_dns_rule() {
+	rule_uses_domain "$1" && dns_needed=1
+	return 0
+}
+
+dns_monitor_needed() {
+	local dns_needed=0
+	config_foreach mark_dns_rule udpspeeder
+	[ "$dns_needed" = 1 ]
+}
+
 valid_literal() {
 	[ "${#1}" -le 45 ] || return 1
 	case "$1" in

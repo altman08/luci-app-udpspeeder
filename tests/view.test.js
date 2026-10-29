@@ -125,6 +125,34 @@ test('overlapping row actions issue only one mutation', async () => {
 	assert.equal(calls.filter(x => /^rule_(stop|restart)$/.test(x[1])).length, 1);
 });
 
+test('action buttons and log access reflect stopped, running and failed rules', async () => {
+	const { view, options, state } = setup();
+	await view.render();
+	options._status.textvalue('tunnel1');
+	options._actions.textvalue('tunnel1');
+	await view.refreshStatus();
+	const row = view.rows.tunnel1;
+	assert.equal(row.start.textContent, 'Start');
+	assert.equal(row.start.className, 'cbi-button cbi-button-positive');
+	assert.equal(row.start.disabled, false);
+	assert.equal(row.stop.className, 'cbi-button cbi-button-neutral');
+	assert.equal(row.stop.disabled, true);
+	assert.equal(row.log.style.display, 'none');
+	state.instances = { tunnel1: { running: true } };
+	await view.refreshStatus();
+	assert.equal(row.start.textContent, 'Restart');
+	assert.equal(row.start.className, 'cbi-button cbi-button-action');
+	assert.equal(row.stop.className, 'cbi-button cbi-button-negative');
+	assert.equal(row.stop.disabled, false);
+	assert.equal(row.log.style.display, '');
+	state.instances = {};
+	state.stdout = 'error\nInvalid settings\n';
+	await view.refreshStatus();
+	assert.equal(row.status.textContent, 'Start failed');
+	assert.equal(row.log.style.display, '');
+	assert.equal(row.stop.disabled, true);
+});
+
 test('all translated UI messages have a nonempty Chinese translation and matching placeholders', () => {
 	assert.doesNotMatch(source, /[\u3400-\u9fff]/);
 	const messages = [...source.matchAll(/_\(("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')\)/g)]
@@ -138,11 +166,20 @@ test('all translated UI messages have a nonempty Chinese translation and matchin
 
 for (const language of ['en', 'zh-cn']) {
 	test('labels, status, dialogs and validation follow the ' + language + ' catalog', async () => {
-		const { view, options, state, modals, notices } = setup(language);
+		const { view, data, options, state, modals, notices } = setup(language);
 		const chinese = language === 'zh-cn';
 		await view.render();
 		assert.deepEqual(options.server.values, chinese ? [['0', '客户端'], ['1', '服务端']] : [['0', 'Client'], ['1', 'Server']]);
+		assert.equal(options.server.textvalue('tunnel1'), chinese ? '客户端' : 'Client');
+		data.tunnel1.server = '1';
+		assert.equal(options.server.textvalue('tunnel1'), chinese ? '服务端' : 'Server');
+		assert.equal(options.name.textvalue('tunnel1').children, 'tunnel1');
+		data.tunnel1.name = '<b>peer</b>';
+		assert.equal(options.name.textvalue('tunnel1').children, '<b>peer</b>');
+		delete data.tunnel1.name;
 		assert.equal(options._local_port.title, chinese ? '本地监听端口' : 'Local listen port');
+		assert.equal(options._status.title, chinese ? '状态' : 'Status');
+		assert.equal(options._actions.title, chinese ? '操作' : 'Actions');
 		assert.equal(options.fec.validate('', ''), chinese ? '请输入 FEC 参数，例如 20:10。' : 'Enter FEC parameters, for example 20:10.');
 		options._status.textvalue('tunnel1');
 		state.instances = { tunnel1: { running: true } };
