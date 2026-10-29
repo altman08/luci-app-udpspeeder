@@ -1,6 +1,6 @@
 # luci-app-udpspeeder
 
-适用于新版 JavaScript LuCI 的 UDPspeeder 多实例管理界面，菜单为 **网络 → UDP 流量加速**。
+适用于新版 JavaScript LuCI 的 UDPspeeder 多实例管理界面，菜单为 **网络 → UDP 加速**。
 
 支持客户端与服务端、多规则启停、FEC 参数校验、IPv4/IPv6、域名解析与 DDNS 更新，以及按实例隔离的内存日志。界面参考 `luci-app-udp2raw-ultra`。
 
@@ -10,7 +10,7 @@
 apk add --allow-untrusted ./luci-app-udpspeeder-1.0.0-r7.apk ./luci-i18n-udpspeeder-zh-cn-1.0.0-r7.apk
 ```
 
-主包使用英文原文，简体中文由独立的 `luci-i18n-udpspeeder-zh-cn` 提供。安装中文包后，界面跟随 LuCI 的语言设置；未安装中文包时显示英文。中文菜单名称为 **UDP 流量加速**，英文为 **UDP Traffic Acceleration**。
+主包使用英文原文，简体中文由独立的 `luci-i18n-udpspeeder-zh-cn` 提供。安装中文包后，界面跟随 LuCI 的语言设置；未安装中文包时显示英文。中文菜单名称为 **UDP 加速**，英文为 **UDP Traffic Acceleration**。
 
 主包依赖 `luci-base` 和 `UDPspeeder`，由设备的软件源安装。域名解析使用固件自带的 BusyBox `nslookup`，不依赖 `drill` 或 `libldns`。此包为 `noarch`，包含页面和服务脚本，核心二进制由 `UDPspeeder` 提供。
 

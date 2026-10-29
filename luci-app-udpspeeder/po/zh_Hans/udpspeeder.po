@@ -290,7 +290,7 @@ msgid "Tunnel rules"
 msgstr "隧道规则"
 
 msgid "UDP Traffic Acceleration"
-msgstr "UDP 流量加速"
+msgstr "UDP 加速"
 
 msgid "Use x:y or x1:y1,x2:y2, where x >= 1, y >= 0, x + y <= 255, and x strictly increases."
 msgstr "格式为 x:y 或 x1:y1,x2:y2；x≥1、y≥0、x+y≤255，且 x 严格递增。"
