@@ -1,0 +1,11 @@
+{
+	"admin/network/udpspeeder": {
+		"title": "UDP Traffic Acceleration",
+		"order": 61,
+		"action": { "type": "view", "path": "udpspeeder/config" },
+		"depends": {
+			"acl": [ "luci-app-udpspeeder" ],
+			"uci": { "udpspeeder": true }
+		}
+	}
+}

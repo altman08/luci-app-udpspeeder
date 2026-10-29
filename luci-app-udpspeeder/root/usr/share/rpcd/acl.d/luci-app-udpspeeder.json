@@ -1,0 +1,21 @@
+{
+	"luci-app-udpspeeder": {
+		"description": "Manage UDPspeeder rules and runtime",
+		"read": {
+			"uci": [ "udpspeeder" ],
+			"ubus": { "service": [ "list" ] },
+			"file": {
+				"/etc/init.d/udpspeeder-luci rule_status *": [ "exec" ],
+				"/etc/init.d/udpspeeder-luci rule_log *": [ "exec" ]
+			}
+		},
+		"write": {
+			"uci": [ "udpspeeder" ],
+			"file": {
+				"/etc/init.d/udpspeeder-luci rule_start *": [ "exec" ],
+				"/etc/init.d/udpspeeder-luci rule_stop *": [ "exec" ],
+				"/etc/init.d/udpspeeder-luci rule_restart *": [ "exec" ]
+			}
+		}
+	}
+}

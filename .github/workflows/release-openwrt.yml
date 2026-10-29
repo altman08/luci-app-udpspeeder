@@ -1,0 +1,175 @@
+name: Release OpenWrt packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag
+        required: true
+        type: string
+      prerelease:
+        description: Mark as prerelease
+        required: true
+        default: true
+        type: boolean
+      sdk:
+        description: OpenWrt SDK version for APK (25.12.x)
+        required: true
+        default: '25.12.5'
+        type: string
+      ipk_sdk:
+        description: OpenWrt SDK version for IPK (24.10.x)
+        required: true
+        default: '24.10.5'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openwrt-${{ github.workflow }}-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Validate frontend and runtime
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          node --test tests/*.test.js
+          python3 -m unittest discover -s tests -p '*_test.py' -v
+          find luci-app-udpspeeder/root -type f \( -name '*.sh' -o -path '*/init.d/*' -o -path '*/uci-defaults/*' \) -print0 | xargs -0 -n1 sh -n
+          sh -n build-apk.sh
+
+  openwrt-packages:
+    name: OpenWrt ${{ matrix.sdk }} (${{ matrix.format }})
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sdk: ${{ inputs.ipk_sdk }}
+            format: ipk
+          - sdk: ${{ inputs.sdk }}
+            format: apk
+    steps:
+      - name: Validate inputs
+        env:
+          TAG: ${{ inputs.tag }}
+          SDK: ${{ matrix.sdk }}
+        run: |
+          git check-ref-format "refs/tags/${TAG}"
+          [[ "$SDK" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      # The frontend/runtime scripts are architecture independent. Use one
+      # x86_64 SDK per package format, without publishing the compiled core.
+      - name: Build OpenWrt packages
+        uses: openwrt/gh-action-sdk@v11
+        timeout-minutes: 75
+        env:
+          ARCH: x86_64-${{ matrix.sdk }}
+          FEED_DIR: ${{ github.workspace }}
+          NO_SHFMT_CHECK: true
+          # LuCI builds po/zh_Hans as a translation subpackage of this target.
+          PACKAGES: luci-app-udpspeeder
+          V: sc
+      - name: Collect frontend and Chinese translation
+        env:
+          SDK: ${{ matrix.sdk }}
+          FORMAT: ${{ matrix.format }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          package_dir=bin/packages/x86_64/action
+          case "$FORMAT" in
+            ipk)
+              frontend=("${package_dir}"/luci-app-udpspeeder_*.ipk)
+              translations=("${package_dir}"/luci-i18n-udpspeeder-zh-cn_*.ipk)
+              ;;
+            apk)
+              frontend=("${package_dir}"/luci-app-udpspeeder-[0-9]*.apk)
+              translations=("${package_dir}"/luci-i18n-udpspeeder-zh-cn-[0-9]*.apk)
+              ;;
+            *) echo "::error::Unsupported package format: $FORMAT"; exit 1 ;;
+          esac
+          if ((${#frontend[@]} == 0 || ${#translations[@]} == 0)); then
+            echo "::error::Expected luci-app-udpspeeder and luci-i18n-udpspeeder-zh-cn ($FORMAT) in $package_dir"
+            exit 1
+          fi
+          mkdir -p release
+          for package in "${frontend[@]}" "${translations[@]}"; do
+            filename=$(basename "$package")
+            extension="${filename##*.}"
+            stem="${filename%.*}"
+            cp "$package" "release/${stem}_openwrt-${SDK}.${extension}"
+          done
+          cd release
+          packages=( *.ipk *.apk )
+          sha256sum -- "${packages[@]}" > "sha256sums_openwrt-${SDK}_${FORMAT}"
+      - name: Upload OpenWrt packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: udpspeeder-openwrt-${{ matrix.sdk }}-${{ matrix.format }}
+          path: release/*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: udpspeeder-build-logs-${{ matrix.sdk }}-${{ matrix.format }}
+          path: logs/
+          if-no-files-found: ignore
+
+  release:
+    name: Publish OpenWrt packages
+    needs: openwrt-packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: udpspeeder-openwrt-*
+          path: release
+          merge-multiple: true
+      - name: Create release and upload packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          TARGET: ${{ github.sha }}
+          GH_PROMPT_DISABLED: '1'
+        run: |
+          set -euo pipefail
+          retry() {
+            local attempt
+            for attempt in 1 2 3; do
+              if timeout --kill-after=5s 90s "$@"; then return 0; fi
+              if [ "$attempt" -lt 3 ]; then sleep $((attempt * 5)); fi
+            done
+            return 1
+          }
+          ensure_release() {
+            if gh release view "$TAG" --repo "$REPOSITORY" >/dev/null 2>&1; then return 0; fi
+            local args=("$TAG" --repo "$REPOSITORY" --target "$TARGET" --title "$TAG" --generate-notes)
+            if [ "$PRERELEASE" = true ]; then args+=(--prerelease); fi
+            gh release create "${args[@]}"
+          }
+          export -f ensure_release
+          retry bash -c ensure_release
+          retry gh release upload "$TAG" release/* --repo "$REPOSITORY" --clobber

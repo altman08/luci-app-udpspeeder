@@ -1,0 +1,3 @@
+#!/bin/sh
+# Also runs on the first boot of an image built with this package.
+/usr/share/udpspeeder-luci/lifecycle.sh install

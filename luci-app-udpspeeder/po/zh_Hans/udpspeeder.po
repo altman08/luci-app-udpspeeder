@@ -1,0 +1,300 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: luci-app-udpspeeder\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "0: Fragment and aggregate to save bandwidth"
+msgstr "0：分片聚合，节省流量"
+
+msgid "1: Encode per packet; check the MTU"
+msgstr "1：按包编码，需留意 MTU"
+
+msgid "20:10 adds 10 redundant shards for every 20 data shards. Multiple groups are supported, for example 1:3,2:4,8:6,20:10. Encoding parameters may differ between ends."
+msgstr "20:10 表示每 20 个数据分片增加 10 个冗余分片。支持多组，例如 1:3,2:4,8:6,20:10。编码参数允许两端不同。"
+
+msgid "Accepts an integer or min:max. Set to 0 to disable."
+msgstr "支持整数或 min:max；0 表示关闭。"
+
+msgid "Add rule"
+msgstr "添加规则"
+
+msgid "Advanced settings"
+msgstr "高级设置"
+
+msgid "Automatic (prefer IPv4)"
+msgstr "自动（优先 IPv4）"
+
+msgid "Basic settings"
+msgstr "基本设置"
+
+msgid "Client"
+msgstr "客户端"
+
+msgid "Clients usually listen on 127.0.0.1. Servers can use 0.0.0.0 or ::. IPv6 dual-stack behavior depends on system settings."
+msgstr "客户端通常使用 127.0.0.1；服务端可使用 0.0.0.0 或 ::。IPv6 双栈监听行为取决于系统设置。"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Configuration changes are pending. Save and apply them before controlling rules."
+msgstr "配置尚未应用，请先保存并应用，再操作规则。"
+
+msgid "Current target: %s"
+msgstr "当前目标：%s"
+
+msgid "DNS check interval (seconds)"
+msgstr "域名检测间隔（秒）"
+
+msgid "DNS server"
+msgstr "解析 DNS"
+
+msgid "Debug"
+msgstr "调试"
+
+msgid "Decoder buffer (packets)"
+msgstr "解码缓冲区（包）"
+
+msgid "Disable FEC"
+msgstr "禁用 FEC"
+
+msgid "Disable checksum"
+msgstr "禁用校验"
+
+msgid "Disable random obfuscation"
+msgstr "禁用随机混淆"
+
+msgid "Disabled"
+msgstr "已禁用"
+
+msgid "Enabled"
+msgstr "启用"
+
+msgid "Enabled rules start automatically. Start and Stop update the enabled setting and use the saved parameters."
+msgstr "启用决定规则是否自动运行；行内启动和停止会同步启用设置，并使用已保存的参数。"
+
+msgid "Encoding timeout (ms)"
+msgstr "编码等待上限（毫秒）"
+
+msgid "Enter FEC parameters, for example 20:10."
+msgstr "请输入 FEC 参数，例如 20:10。"
+
+msgid "Enter a valid device name of at most 15 characters."
+msgstr "请输入有效的设备名（最多 15 字符）。"
+
+msgid "Enter an integer from 0 to 10000, or min:max with min <= max."
+msgstr "请输入 0–10000 的整数，或 min:max（min≤max）。"
+
+msgid "Error"
+msgstr "错误"
+
+msgid "FEC"
+msgstr "FEC"
+
+msgid "FEC MTU"
+msgstr "FEC MTU"
+
+msgid "FEC mode"
+msgstr "FEC 模式"
+
+msgid "FEC redundancy parameters"
+msgstr "FEC 冗余参数"
+
+msgid "FEC settings"
+msgstr "FEC 设置"
+
+msgid "Fatal"
+msgstr "致命"
+
+msgid "For clients, enter the UDPspeeder server address. For servers, enter the target UDP service address. IP addresses and hostnames are supported."
+msgstr "客户端填写 UDPspeeder 服务端地址；服务端填写真实 UDP 服务地址。支持 IP 或域名。"
+
+msgid "For debugging. Usually leave at 0. A value of 100 simulates 1% packet loss."
+msgstr "调试用，通常保持 0。100 表示模拟 1% 丢包。"
+
+msgid "For example: WireGuard"
+msgstr "例如：WireGuard"
+
+msgid "Global settings"
+msgstr "全局设置"
+
+msgid "IPv4 only"
+msgstr "仅 IPv4"
+
+msgid "IPv6 only"
+msgstr "仅 IPv6"
+
+msgid "Info"
+msgstr "信息"
+
+msgid "Keep the default value unless needed. Mode 0 fragments packets; mode 1 does not."
+msgstr "建议保留默认值。模式 0 可分片；模式 1 不分片。"
+
+msgid "Key"
+msgstr "密钥"
+
+msgid "Leave empty to use the system DNS. Hostnames are resolved before startup; address changes restart only the affected rule."
+msgstr "留空使用系统 DNS。域名启动前解析，地址变化时只重启对应规则。"
+
+msgid "Listen → target"
+msgstr "监听 → 目标"
+
+msgid "Loading…"
+msgstr "加载中…"
+
+msgid "Local listen address"
+msgstr "本地监听地址"
+
+msgid "Local listen port"
+msgstr "本地监听端口"
+
+msgid "Log level"
+msgstr "日志级别"
+
+msgid "Log lines retained per rule"
+msgstr "每条规则日志保留行数"
+
+msgid "Logs"
+msgstr "日志"
+
+msgid "Logs are stored in memory separately for each rule. Global settings control the number of retained lines."
+msgstr "日志保存在内存中，按规则隔离；保留条数由全局设置控制。"
+
+msgid "Maximum encoding queue length"
+msgstr "最大编码队列长度"
+
+msgid "Must match on both ends. Disabling random padding reduces bandwidth and CPU overhead."
+msgstr "两端需要一致。关闭随机填充可减少部分流量和 CPU 开销。"
+
+msgid "Must match on both ends. Used for simple XOR obfuscation, not strong encryption. May be empty and must not contain whitespace."
+msgstr "两端一致。用于简单 XOR 混淆，可留空；不提供强加密。密钥不能包含空白字符。"
+
+msgid "Must match on both ends. Usually leave disabled."
+msgstr "两端需要一致。通常保持关闭。"
+
+msgid "Must match on both ends. When enabled, this runs as a plain UDP tunnel."
+msgstr "两端需要一致；启用后作为普通 UDP 隧道运行。"
+
+msgid "Name"
+msgstr "名称"
+
+msgid "No logs available"
+msgstr "暂无日志"
+
+msgid "Off"
+msgstr "关闭"
+
+msgid "Operation failed"
+msgstr "操作失败"
+
+msgid "Packet spreading interval (ms)"
+msgstr "分散发包时间（毫秒）"
+
+msgid "Passed to --out-interface. Enter an actual device name, for example pppoe-wan. Leave empty to use system routing."
+msgstr "传递给 --out-interface，例如 pppoe-wan；填写实际设备名。留空按系统路由选择。"
+
+msgid "Read failed: %s"
+msgstr "读取失败：%s"
+
+msgid "Reduce UDP packet loss using forward error correction (FEC) and redundant packets. Each rule is an independent client or server instance."
+msgstr "通过前向纠错（FEC）和冗余发包改善 UDP 丢包。每条规则是独立的客户端或服务端实例。"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Resolving"
+msgstr "解析中"
+
+msgid "Restart"
+msgstr "重启"
+
+msgid "Role"
+msgstr "角色"
+
+msgid "Rule log: %s"
+msgstr "规则日志：%s"
+
+msgid "Running"
+msgstr "运行中"
+
+msgid "Server"
+msgstr "服务端"
+
+msgid "Servers listen on a public UDP port and forward traffic to the target service. Clients provide a local UDP endpoint. Allow the server listen port in the firewall."
+msgstr "服务端监听公网 UDP 端口并转发到真实服务；客户端提供本地 UDP 入口。服务端的监听端口需要在防火墙放行。"
+
+msgid "Set to 0 to disable, or specify the interval between reports."
+msgstr "0 表示关闭，其他值表示输出报告的间隔。"
+
+msgid "Simulated jitter (ms)"
+msgstr "模拟抖动（毫秒）"
+
+msgid "Simulated packet loss (0.01%)"
+msgstr "模拟丢包（0.01%）"
+
+msgid "Socket buffer (KB)"
+msgstr "Socket 缓冲区（KB）"
+
+msgid "Stabilize latency"
+msgstr "稳定延迟"
+
+msgid "Start"
+msgstr "启动"
+
+msgid "Start failed"
+msgstr "启动失败"
+
+msgid "Status / actions"
+msgstr "状态 / 操作"
+
+msgid "Status query failed"
+msgstr "状态查询失败"
+
+msgid "Stop"
+msgstr "停止"
+
+msgid "Stopped"
+msgstr "已停止"
+
+msgid "System default"
+msgstr "系统默认"
+
+msgid "Target address"
+msgstr "目标地址"
+
+msgid "Target hostname address family"
+msgstr "目标域名地址族"
+
+msgid "Target output device"
+msgstr "目标出口设备"
+
+msgid "Target port"
+msgstr "目标端口"
+
+msgid "The key must not exceed 256 characters or contain whitespace."
+msgstr "密钥最长 256 字符，且不能包含空白。"
+
+msgid "Trace"
+msgstr "跟踪"
+
+msgid "Traffic report interval (seconds)"
+msgstr "收发报告间隔（秒）"
+
+msgid "Tunnel rules"
+msgstr "隧道规则"
+
+msgid "UDP Traffic Acceleration"
+msgstr "UDP 流量加速"
+
+msgid "Use x:y or x1:y1,x2:y2, where x >= 1, y >= 0, x + y <= 255, and x strictly increases."
+msgstr "格式为 x:y 或 x1:y1,x2:y2；x≥1、y≥0、x+y≤255，且 x 严格递增。"
+
+msgid "Warning"
+msgstr "警告"
+
+msgid "Working…"
+msgstr "操作中…"
+
